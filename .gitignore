@@ -42,3 +42,9 @@ src/a1_cpp/cmake-build-debug
 src/a1_cpp/cmake-build-debug-remote/
 
 src/a1_cpp/src/mpc_osqp.cc
+
+# Python bindings build artifacts
+*.egg-info/
+dist/
+*.pyc
+__pycache__/

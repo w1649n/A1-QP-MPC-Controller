@@ -68,7 +68,11 @@ public:
                       -9.8;
         
         // Compute rotation matrix from euler angles
-        Eigen::Matrix3d root_rot_mat = Utils::euler_to_rot_mat(state.root_euler);
+        // ZYX convention (yaw-pitch-roll)
+        Eigen::Matrix3d root_rot_mat = 
+            Eigen::AngleAxisd(state.root_euler[2], Eigen::Vector3d::UnitZ()) *
+            Eigen::AngleAxisd(state.root_euler[1], Eigen::Vector3d::UnitY()) *
+            Eigen::AngleAxisd(state.root_euler[0], Eigen::Vector3d::UnitX());
         Eigen::Vector3d root_lin_vel_d_world = root_rot_mat * state.root_lin_vel_d;
         
         // Build desired trajectory
