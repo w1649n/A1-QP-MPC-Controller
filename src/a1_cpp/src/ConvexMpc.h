@@ -24,6 +24,8 @@ public:
     ConvexMpc(Eigen::VectorXd &q_weights_, Eigen::VectorXd &r_weights_);
 
     void reset();
+    
+    void set_weights(const Eigen::VectorXd &q_weights_, const Eigen::VectorXd &r_weights_);
 
     void calculate_A_mat_c(Eigen::Vector3d root_euler);
 
@@ -33,6 +35,11 @@ public:
     void state_space_discretization(double dt);
 
     void calculate_qp_mats(A1CtrlStates &state);
+    
+    // Overloaded version for Python binding (no ROS dependency)
+    void calculate_qp_mats(const Eigen::Matrix<double, MPC_STATE_DIM, 1> &mpc_states,
+                          const Eigen::Matrix<double, MPC_STATE_DIM * PLAN_HORIZON, 1> &mpc_states_d,
+                          const bool contacts[NUM_LEG]);
 
 //private:
     // parameters initialized with class ConvexMpc

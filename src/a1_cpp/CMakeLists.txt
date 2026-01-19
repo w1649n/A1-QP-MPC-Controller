@@ -133,3 +133,31 @@ add_executable(test_unitree_legged_msgs src/test/test_unitree_msgs.cpp)
 target_link_libraries(test_unitree_legged_msgs
         ${catkin_LIBRARIES}
         )
+
+# Python binding module (optional, only built if BUILD_PYTHON_BINDINGS is ON)
+option(BUILD_PYTHON_BINDINGS "Build Python bindings" OFF)
+
+if(BUILD_PYTHON_BINDINGS)
+    # Find pybind11
+    find_package(pybind11 REQUIRED)
+    
+    # Create a library for MPC without ROS dependencies
+    # Note: We include A1CtrlStates.h but we don't use the ROS-dependent parts
+    add_library(mpc_lib_standalone
+            src/ConvexMpc.cpp
+            src/ConvexMpc.h
+            src/A1Params.h
+            src/MPCState.h
+            src/utils/Utils.cpp
+            src/utils/Utils.h
+            )
+    target_link_libraries(mpc_lib_standalone OsqpEigen::OsqpEigen ${catkin_LIBRARIES})
+    
+    # Python module
+    pybind11_add_module(mpc_controller src/pybind_mpc.cpp)
+    target_link_libraries(mpc_controller PRIVATE mpc_lib_standalone OsqpEigen::OsqpEigen)
+    
+    # Install the module
+    install(TARGETS mpc_controller LIBRARY DESTINATION .)
+endif()
+
