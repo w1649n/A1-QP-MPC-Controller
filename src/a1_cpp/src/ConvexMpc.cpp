@@ -75,10 +75,9 @@ void ConvexMpc::set_weights(const Eigen::VectorXd &q_weights_, const Eigen::Vect
     }
     Q.diagonal() = 2*q_weights_mpc;
     
-    // Update Q_sparse
-    Q_sparse = Eigen::SparseMatrix<double>(MPC_STATE_DIM * PLAN_HORIZON, MPC_STATE_DIM * PLAN_HORIZON);
+    // Update Q_sparse efficiently by modifying existing coefficients
     for (int i = 0; i < MPC_STATE_DIM*PLAN_HORIZON; ++i) {
-        Q_sparse.insert(i,i) = 2*q_weights_mpc(i);
+        Q_sparse.coeffRef(i, i) = 2*q_weights_mpc(i);
     }
     
     // Update r_weights
@@ -88,10 +87,9 @@ void ConvexMpc::set_weights(const Eigen::VectorXd &q_weights_, const Eigen::Vect
     }
     R.diagonal() = 2*r_weights_mpc;
     
-    // Update R_sparse
-    R_sparse = Eigen::SparseMatrix<double>(NUM_DOF * PLAN_HORIZON, NUM_DOF * PLAN_HORIZON);
+    // Update R_sparse efficiently by modifying existing coefficients
     for (int i = 0; i < NUM_DOF*PLAN_HORIZON; ++i) {
-        R_sparse.insert(i,i) = 2*r_weights_mpc(i);
+        R_sparse.coeffRef(i, i) = 2*r_weights_mpc(i);
     }
 }
 

@@ -13,7 +13,6 @@ try:
 except ImportError as e:
     print(f"✗ Failed to import mpc_controller: {e}")
     print("\nPlease build and install the module first:")
-    print("  cd /path/to/A1-QP-MPC-Controller")
     print("  pip install -e .")
     exit(1)
 

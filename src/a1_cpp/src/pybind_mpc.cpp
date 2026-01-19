@@ -55,9 +55,11 @@ public:
         solver_initialized = false;
     }
     
-    Eigen::VectorXd solve(MPCState &state, double dt = 0.0025) {
-        // Reset solver state
-        mpc_solver->reset();
+    Eigen::VectorXd solve(MPCState &state, double dt = 0.0025, bool reset_solver = false) {
+        // Optionally reset solver state
+        if (reset_solver) {
+            mpc_solver->reset();
+        }
         
         // Build MPC state vector
         Eigen::Matrix<double, MPC_STATE_DIM, 1> mpc_states;
@@ -78,7 +80,7 @@ public:
         // Build desired trajectory
         Eigen::Matrix<double, MPC_STATE_DIM * PLAN_HORIZON, 1> mpc_states_d;
         for (int i = 0; i < PLAN_HORIZON; ++i) {
-            mpc_states_d.segment(i * 13, 13)
+            mpc_states_d.segment(i * MPC_STATE_DIM, MPC_STATE_DIM)
                     << state.root_euler_d[0],
                        state.root_euler_d[1],
                        state.root_euler[2] + state.root_ang_vel_d[2] * dt * (i + 1),
@@ -108,7 +110,7 @@ public:
             mpc_solver->state_space_discretization(dt);
             
             // Store current B_d matrix
-            mpc_solver->B_mat_d_list.block<13, 12>(i * 13, 0) = mpc_solver->B_mat_d;
+            mpc_solver->B_mat_d_list.block<MPC_STATE_DIM, NUM_DOF>(i * MPC_STATE_DIM, 0) = mpc_solver->B_mat_d;
         }
         
         // Calculate QP matrices using the overloaded version
@@ -197,7 +199,7 @@ PYBIND11_MODULE(mpc_controller, m) {
              py::arg("q_weights"), py::arg("r_weights"),
              "Set MPC weights (q_weights: 13-dim, r_weights: 12-dim)")
         .def("solve", &ConvexMpcPython::solve,
-             py::arg("state"), py::arg("dt") = 0.0025,
+             py::arg("state"), py::arg("dt") = 0.0025, py::arg("reset_solver") = false,
              "Solve MPC and return ground reaction forces (12-dim vector)")
         .def("reset", &ConvexMpcPython::reset,
              "Reset the MPC solver");

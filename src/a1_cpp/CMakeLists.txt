@@ -151,7 +151,7 @@ if(BUILD_PYTHON_BINDINGS)
             src/utils/Utils.cpp
             src/utils/Utils.h
             )
-    target_link_libraries(mpc_lib_standalone OsqpEigen::OsqpEigen ${catkin_LIBRARIES})
+    target_link_libraries(mpc_lib_standalone OsqpEigen::OsqpEigen)
     
     # Python module
     pybind11_add_module(mpc_controller src/pybind_mpc.cpp)
