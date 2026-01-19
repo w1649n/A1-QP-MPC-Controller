@@ -27,6 +27,30 @@ The features of this controller include
     - 9cm staircase climbing (only tested in Gazebo, hardware test ongoing)
     - Docker based installation
     - Intergrated ROS1 ecosystem
+    - **NEW: Python bindings for RL-MPC integration** (Isaac Lab compatible)
+
+### Python Bindings (NEW)
+
+We now provide Python bindings for the MPC controller, enabling direct C++ solver access from Python. This is designed for RL-MPC architectures where a reinforcement learning policy outputs MPC weights.
+
+**Quick start:**
+```bash
+pip install -e .
+```
+
+**Usage:**
+```python
+import mpc_controller
+import numpy as np
+
+mpc = mpc_controller.ConvexMpc()
+mpc.set_weights(q_weights=np.array([...]), r_weights=np.array([...]))
+state = mpc_controller.MPCState()
+# ... configure state ...
+grf = mpc.solve(state)
+```
+
+See [PYTHON_BINDINGS.md](PYTHON_BINDINGS.md) for detailed documentation, API reference, and examples.
 
 ### Demonstration Videos
 
@@ -271,6 +295,47 @@ as that in the Gazebo demo.
 ![Issac A1](doc/isaac_a1.png)
 
 We can use this controller to control an A1 robot in Nvidia Isaac Sim. This functionality is still under development. It will work with the next Isaac Sim release.
+
+For Isaac Lab integration using Python bindings, see [PYTHON_BINDINGS.md](PYTHON_BINDINGS.md).
+
+## Python Bindings for RL-MPC Integration
+
+The repository now includes Python bindings that allow direct access to the C++ MPC solver from Python. This is particularly useful for:
+
+- **RL-MPC architectures**: Where a reinforcement learning policy outputs MPC weights
+- **Isaac Lab integration**: Direct C++ solver access in Isaac Lab environments
+- **Research**: Rapid prototyping and experimentation with MPC parameters
+
+### Installation
+```bash
+pip install -e .
+```
+
+### Documentation
+See [PYTHON_BINDINGS.md](PYTHON_BINDINGS.md) for:
+- Complete API reference
+- Installation instructions
+- Usage examples
+- RL-MPC integration guide
+
+### Example
+```python
+import mpc_controller
+import numpy as np
+
+# Create MPC controller
+mpc = mpc_controller.ConvexMpc()
+
+# Set weights from RL policy
+q_weights = np.array([1.0, 1.5, 0.0, 0.0, 0.0, 50, 0.0, 0.0, 0.1, 1.0, 1.0, 0.1, 0.0])
+r_weights = np.array([1e-5] * 12)
+mpc.set_weights(q_weights, r_weights)
+
+# Solve for ground reaction forces
+state = mpc_controller.MPCState()
+# ... configure state from observation ...
+grf = mpc.solve(state)
+```
 
 ## Troubleshooting
 Please create issues for any installation problem. 
