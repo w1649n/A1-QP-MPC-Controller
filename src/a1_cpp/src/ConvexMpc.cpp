@@ -67,6 +67,32 @@ ConvexMpc::ConvexMpc(Eigen::VectorXd &q_weights_, Eigen::VectorXd &r_weights_) {
 //    }
 }
 
+void ConvexMpc::set_weights(const Eigen::VectorXd &q_weights_, const Eigen::VectorXd &r_weights_) {
+    // Update q_weights
+    q_weights_mpc.resize(MPC_STATE_DIM * PLAN_HORIZON);
+    for (int i = 0; i < PLAN_HORIZON; ++i) {
+        q_weights_mpc.segment(i * MPC_STATE_DIM, MPC_STATE_DIM) = q_weights_;
+    }
+    Q.diagonal() = 2*q_weights_mpc;
+    
+    // Update Q_sparse efficiently by modifying existing coefficients
+    for (int i = 0; i < MPC_STATE_DIM*PLAN_HORIZON; ++i) {
+        Q_sparse.coeffRef(i, i) = 2*q_weights_mpc(i);
+    }
+    
+    // Update r_weights
+    r_weights_mpc.resize(NUM_DOF * PLAN_HORIZON);
+    for (int i = 0; i < PLAN_HORIZON; ++i) {
+        r_weights_mpc.segment(i * NUM_DOF, NUM_DOF) = r_weights_;
+    }
+    R.diagonal() = 2*r_weights_mpc;
+    
+    // Update R_sparse efficiently by modifying existing coefficients
+    for (int i = 0; i < NUM_DOF*PLAN_HORIZON; ++i) {
+        R_sparse.coeffRef(i, i) = 2*r_weights_mpc(i);
+    }
+}
+
 void ConvexMpc::reset() {
 //    // continuous time state space model
 //    A_mat_c.resize(state_dim, state_dim);
@@ -257,4 +283,65 @@ void ConvexMpc::calculate_qp_mats(A1CtrlStates &state) {
     // std::cout << "IN CAL_QP_MATS: cal gradient: " << ms_double_3.count() << "ms" << std::endl;
     // std::cout << "IN CAL_QP_MATS: cal linear constraints: " << ms_double_4.count() << "ms" << std::endl;
     // std::cout << "IN CAL_QP_MATS: cal lb and ub: " << ms_double_5.count() << "ms" << std::endl;
+}
+
+// Overloaded version for Python binding (no A1CtrlStates dependency)
+void ConvexMpc::calculate_qp_mats(const Eigen::Matrix<double, MPC_STATE_DIM, 1> &mpc_states,
+                                  const Eigen::Matrix<double, MPC_STATE_DIM * PLAN_HORIZON, 1> &mpc_states_d,
+                                  const bool contacts[NUM_LEG]) {
+    // Calculate A_qp and B_qp
+    for (int i = 0; i < PLAN_HORIZON; ++i) {
+        if (i == 0) {
+            A_qp.block<MPC_STATE_DIM, MPC_STATE_DIM>(MPC_STATE_DIM * i, 0) = A_mat_d;
+        }
+        else {
+            A_qp.block<MPC_STATE_DIM, MPC_STATE_DIM>(MPC_STATE_DIM * i, 0) = 
+            A_qp.block<MPC_STATE_DIM, MPC_STATE_DIM>(MPC_STATE_DIM * (i-1), 0)*A_mat_d;
+        }
+        for (int j = 0; j < i + 1; ++j) {
+            if (i-j == 0) {
+                B_qp.block<MPC_STATE_DIM, NUM_DOF>(MPC_STATE_DIM * i, NUM_DOF * j) =
+                    B_mat_d_list.block<MPC_STATE_DIM, NUM_DOF>(j * MPC_STATE_DIM, 0);
+            } else {
+                B_qp.block<MPC_STATE_DIM, NUM_DOF>(MPC_STATE_DIM * i, NUM_DOF * j) =
+                        A_qp.block<MPC_STATE_DIM, MPC_STATE_DIM>(MPC_STATE_DIM * (i-j-1), 0) 
+                        * B_mat_d_list.block<MPC_STATE_DIM, NUM_DOF>(j * MPC_STATE_DIM, 0);
+            }
+        }
+    }
+
+    // Calculate hessian
+    Eigen::Matrix<double, NUM_DOF * PLAN_HORIZON, NUM_DOF * PLAN_HORIZON> dense_hessian;
+    dense_hessian = (B_qp.transpose() * Q * B_qp);
+    dense_hessian += R;
+    hessian = dense_hessian.sparseView();
+
+    // Calculate gradient
+    Eigen::Matrix<double, 13*PLAN_HORIZON, 1> tmp_vec = A_qp * mpc_states;
+    tmp_vec -= mpc_states_d;
+    gradient = B_qp.transpose() * Q * tmp_vec;
+
+    // Calculate lower bound and upper bound
+    fz_min = 0;
+    fz_max = 180;
+
+    Eigen::VectorXd lb_one_horizon(MPC_CONSTRAINT_DIM);
+    Eigen::VectorXd ub_one_horizon(MPC_CONSTRAINT_DIM);
+    for (int i = 0; i < NUM_LEG; ++i) {
+        lb_one_horizon.segment<5>(i * 5) << 0,
+                -OsqpEigen::INFTY,
+                0,
+                -OsqpEigen::INFTY,
+                fz_min * contacts[i];
+        ub_one_horizon.segment<5>(i * 5) << OsqpEigen::INFTY,
+                0,
+                OsqpEigen::INFTY,
+                0,
+                fz_max * contacts[i];
+    }
+    
+    for (int i = 0; i < PLAN_HORIZON; ++i) {
+        lb.segment<MPC_CONSTRAINT_DIM>(i * MPC_CONSTRAINT_DIM) = lb_one_horizon;
+        ub.segment<MPC_CONSTRAINT_DIM>(i * MPC_CONSTRAINT_DIM) = ub_one_horizon;
+    }
 }
